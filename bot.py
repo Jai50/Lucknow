@@ -1,18 +1,17 @@
 """
 LUCKNOW GLEEDEN BOT - HINDI + ENGLISH
-FIXED - Admin Message Working
+24x7 Timing | No Photoshoot | FULLY FIXED VERSION
 """
 
 import os
 import threading
-import asyncio
 from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 from datetime import datetime
 
 # ============================================
-# FLASK APP
+# FLASK APP FOR RENDER HEALTH CHECK
 # ============================================
 flask_app = Flask(__name__)
 
@@ -33,42 +32,22 @@ def run_flask():
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
 ADMIN_ID = int(os.environ.get("ADMIN_ID", 1919682117))
 
-print("=" * 60)
-print("🚀 LUCKNOW GLEEDEN BOT STARTING...")
-print(f"🤖 TOKEN: {'✅ Loaded' if TOKEN else '❌ Missing'}")
+# Print for debugging
+print(f"🤖 TOKEN Loaded: {'✅ Yes' if TOKEN else '❌ No'}")
 print(f"👑 ADMIN_ID: {ADMIN_ID}")
-print("=" * 60)
 
-# Storage
+# Temporary storage
 user_data = {}
 bookings = {}
 user_active_booking = {}
-
-# ============================================
-# SEND MESSAGE TO ADMIN WITH RETRY
-# ============================================
-
-async def send_to_admin(bot, message_text, max_retries=3):
-    """Send message to admin with retry mechanism"""
-    
-    for attempt in range(max_retries):
-        try:
-            await bot.send_message(ADMIN_ID, message_text)
-            print(f"✅ Message sent to admin (attempt {attempt + 1})")
-            return True
-        except Exception as e:
-            print(f"❌ Attempt {attempt + 1} failed: {e}")
-            if attempt < max_retries - 1:
-                await asyncio.sleep(2)  # Wait 2 seconds before retry
-    
-    print(f"❌ All {max_retries} attempts failed to send to admin {ADMIN_ID}")
-    return False
 
 # ============================================
 # SHOW MAIN MENU
 # ============================================
 
 async def show_main_menu(message, user_id=None):
+    """Show main menu with 4 options"""
+    
     has_booking = user_id and user_id in user_active_booking
     
     if has_booking:
@@ -77,15 +56,21 @@ async def show_main_menu(message, user_id=None):
             [InlineKeyboardButton("📅 Book Now", callback_data="menu_book")],
             [InlineKeyboardButton("ℹ️ Service Info", callback_data="menu_info")],
             [InlineKeyboardButton("📞 Contact Us", callback_data="menu_contact")],
-            [InlineKeyboardButton("❌ Cancel Booking", callback_data="menu_cancel_booking")]
+            [InlineKeyboardButton(f"❌ Cancel Booking", callback_data="menu_cancel_booking")]
         ]
         menu_text = f"""
 🔥 *LUCKNOW GLEEDEN SERVICE* 🔥
-👩 *Only for Female*
+👩 *Only for Female* 👩
 
-📋 *Active Booking:* `{booking_id}`
+✨ *Premium Entertainment Services* ✨
 
-Type "book" or "hi" for new booking
+📋 *Your Active Booking ID:* `{booking_id}`
+
+📌 *Quick Commands:*
+• Type "book" or "hi" - New Booking
+• Type "cancel" - Cancel Booking
+• Type "info" - Service Info
+• Type "contact" - Contact Us
 """
     else:
         keyboard = [
@@ -96,9 +81,18 @@ Type "book" or "hi" for new booking
         ]
         menu_text = """
 🔥 *LUCKNOW GLEEDEN SERVICE* 🔥
-👩 *Only for Female*
+👩 *Only for Female* 👩
 
-✨ Type "book" or "hi" to start booking ✨
+✨ *Premium Entertainment Services* ✨
+
+📌 *Quick Commands:*
+• Type "book" or "hi" - New Booking
+• Type "cancel" - Cancel Booking
+• Type "info" - Service Info
+• Type "contact" - Contact Us
+
+🔒 *100% Privacy Guaranteed*
+📍 *Service in Lucknow*
 """
     
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -110,12 +104,7 @@ Type "book" or "hi" for new booking
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    user_name = update.effective_user.first_name
-    
     await show_main_menu(update.message, user_id)
-    
-    # Notify admin that bot is working
-    await send_to_admin(context.bot, f"🤖 Bot started by {user_name} (ID: {user_id})")
 
 async def book_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -149,43 +138,100 @@ async def book_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     info_text = """
-ℹ️ *SERVICE INFO*
+ℹ️ *SERVICE INFORMATION* ℹ️
 
-💆‍♂️ Massage - Day OR Night
-🤝 Casual Meet Up - Day OR Night
-☀️ Day Service - 1,2,4 Hours
-🌙 Night Package - 1,2,4 Hours, Full Night
+✨ *What We Offer:*
 
-✅ 24x7 | Only for Female
+💆‍♂️ *Massage* - Day OR Night
+🤝 *Casual Meet Up* - Day OR Night
+☀️ *Day Service* - 1,2,4 Hours
+🌙 *Night Package* - 1,2,4 Hours, Full Night
+
+✅ *Features:*
+• Verified Professionals
+• 100% Privacy Guaranteed
+• Only for Female
+
+⏰ *24x7 Service Available*
 """
     await update.message.reply_text(info_text, parse_mode='Markdown')
 
 async def contact_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     
-    await send_to_admin(context.bot, f"📞 CONTACT REQUEST\nFrom: {user.first_name} (@{user.username or 'N/A'})\nID: {user.id}")
-    await update.message.reply_text("✅ Request sent to admin! We'll contact you shortly.", parse_mode='Markdown')
+    admin_msg = f"""
+📞 *CONTACT REQUEST*
+
+👤 Name: {user.first_name}
+🆔 Username: @{user.username or 'N/A'}
+🆔 ID: `{user.id}`
+⏰ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+    try:
+        await context.bot.send_message(ADMIN_ID, admin_msg, parse_mode='Markdown')
+        print(f"✅ Contact request sent to admin {ADMIN_ID}")
+    except Exception as e:
+        print(f"❌ Failed to send contact request: {e}")
+    
+    await update.message.reply_text("✅ Request sent to admin! We will contact you shortly.", parse_mode='Markdown')
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    help_text = "📌 Type 'book' or 'hi' to start booking\nType 'cancel' to cancel booking"
+    help_text = """
+ℹ️ *HOW TO USE* ℹ️
+
+📅 *To Book:*
+Simply type: "book", "बुक", "hi", "hello"
+
+📋 *Other Keywords:*
+• "info" - Service info
+• "contact" - Contact us
+• "cancel" - Cancel booking
+• "menu" - Show main menu
+"""
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
 # ============================================
-# CANCEL BOOKING
+# CANCEL BOOKING COMMAND
 # ============================================
 
 async def cancel_booking_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel booking command handler"""
     user_id = update.effective_user.id
     
+    print(f"Cancel booking requested by user {user_id}")
+    
     if user_id in user_active_booking:
-        booking_id = user_active_booking[user_id].get("booking_id", "Unknown")
+        booking_data = user_active_booking[user_id]
+        booking_id = booking_data.get("booking_id", "Unknown")
+        
         keyboard = [
-            [InlineKeyboardButton("✅ Yes", callback_data=f"confirm_yes_{booking_id}")],
-            [InlineKeyboardButton("❌ No", callback_data="confirm_no")],
+            [InlineKeyboardButton("✅ Yes, Cancel", callback_data=f"confirm_yes_{booking_id}")],
+            [InlineKeyboardButton("❌ No, Keep", callback_data="confirm_no")],
+            [InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]
         ]
-        await update.message.reply_text(f"⚠️ Cancel Booking `{booking_id}`?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            f"⚠️ *Cancel Booking?* ⚠️\n\n"
+            f"Your Booking ID: `{booking_id}`\n\n"
+            f"Are you sure you want to cancel?\n\n"
+            f"This action cannot be undone.",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
     else:
-        await update.message.reply_text("❌ No active booking found!", parse_mode='Markdown')
+        keyboard = [
+            [InlineKeyboardButton("📅 Book Now", callback_data="menu_book")],
+            [InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            "❌ *No Active Booking Found!*\n\n"
+            "You don't have any active booking to cancel.",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
 
 # ============================================
 # EASY TYPE HANDLER
@@ -196,27 +242,42 @@ async def easy_type_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     text = message.text.lower().strip()
     
+    # If user is in booking flow
     if user_id in user_data:
-        if text in ["cancel", "रद्द"]:
+        current_step = user_data[user_id].get("step")
+        
+        if text in ["cancel", "रद्द", "exit"]:
             if user_id in user_data:
                 del user_data[user_id]
             await cancel_booking_command(update, context)
             return
+        
         await handle_booking_flow(update, context)
         return
     
+    # Easy keywords
     if text in ["book", "booking", "बुक", "hi", "hello", "hey", "hy", "hii"]:
         await book_command(update, context)
     elif text in ["info", "information", "जानकारी"]:
         await info_command(update, context)
     elif text in ["contact", "support", "संपर्क"]:
         await contact_command(update, context)
-    elif text in ["cancel", "रद्द"]:
+    elif text in ["help", "मदद"]:
+        await help_command(update, context)
+    elif text in ["cancel", "रद्द", "cancel booking"]:
         await cancel_booking_command(update, context)
-    elif text in ["start", "menu"]:
+    elif text in ["start", "menu", "मेनू"]:
         await show_main_menu(message, user_id)
     else:
-        await message.reply_text("📝 Type 'book' or 'hi' to start booking")
+        await message.reply_text(
+            "📝 *I don't understand that.*\n\n"
+            "📌 *Try typing:*\n"
+            "• 'book' or 'hi' - New booking\n"
+            "• 'cancel' - Cancel booking\n"
+            "• 'info' - Service info\n"
+            "• 'contact' - Contact us",
+            parse_mode='Markdown'
+        )
 
 # ============================================
 # BOOKING FLOW HANDLER
@@ -235,20 +296,32 @@ async def handle_booking_flow(update: Update, context: ContextTypes.DEFAULT_TYPE
     if current_step == "age":
         user_data[user_id]["age"] = text
         user_data[user_id]["step"] = "location"
-        await message.reply_text(f"✅ Age: {text}\n\n📍 Share your LOCATION (Area Name):\nExample: Gomti Nagar, Lucknow", parse_mode='Markdown')
+        await message.reply_text(
+            f"✅ Age: *{text}*\n\n📍 *Please share your LOCATION (Area Name)*\n\nExample: Gomti Nagar, Lucknow",
+            parse_mode='Markdown'
+        )
     
     elif current_step == "location":
         user_data[user_id]["location"] = text
         user_data[user_id]["step"] = "contact_details"
         
-        keyboard = [[InlineKeyboardButton("⏭️ Skip", callback_data="skip_contact")]]
-        await message.reply_text(f"✅ Location: {text}\n\n📞 Share CONTACT (Optional):\nExample: 9876543210\nOr click SKIP", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        keyboard = [
+            [InlineKeyboardButton("⏭️ Skip", callback_data="skip_contact")],
+            [InlineKeyboardButton("❌ Cancel", callback_data="cancel_during_booking")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await message.reply_text(
+            f"✅ Location: *{text}*\n\n📞 *Share CONTACT DETAILS (Optional)*\n\nExample: 9876543210\n\nOr click SKIP",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
     
     elif current_step == "contact_details":
         await complete_booking(user_id, message, text)
 
 # ============================================
-# CALLBACK HANDLER
+# CALLBACK QUERY HANDLER
 # ============================================
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -258,6 +331,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     data = query.data
     
+    print(f"Button clicked: {data} by user {user_id}")
+    
+    # ========== MAIN MENU ==========
     if data == "main_menu":
         await show_main_menu(query.message, user_id)
     
@@ -265,105 +341,239 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await book_command(update, context)
     
     elif data == "menu_info":
-        await query.edit_message_text("ℹ️ Massage: Day/Night\nCasual Meet Up: Day/Night\nDay Service: 1,2,4 Hours\nNight Package: 1,2,4 Hours, Full Night", parse_mode='Markdown')
+        info_text = """
+ℹ️ *SERVICE INFORMATION*
+
+💆‍♂️ Massage - Day OR Night
+🤝 Casual Meet Up - Day OR Night
+☀️ Day Service - 1,2,4 Hours
+🌙 Night Package - 1,2,4 Hours, Full Night
+
+✅ 24x7 Available | Only for Female
+"""
+        await query.edit_message_text(info_text, parse_mode='Markdown')
     
     elif data == "menu_contact":
         user = query.from_user
-        await send_to_admin(context.bot, f"📞 Contact from {user.first_name} (@{user.username or 'N/A'})")
-        await query.edit_message_text("✅ Request sent to admin!", parse_mode='Markdown')
+        admin_msg = f"📞 Contact Request from {user.first_name} (@{user.username or 'N/A'}) ID: {user.id}"
+        try:
+            await context.bot.send_message(ADMIN_ID, admin_msg)
+            print(f"✅ Contact request sent to admin")
+        except Exception as e:
+            print(f"❌ Failed: {e}")
+        await query.edit_message_text("✅ Request sent to admin! We'll contact you shortly.", parse_mode='Markdown')
     
+    # ========== CANCEL BOOKING ==========
     elif data == "menu_cancel_booking":
         if user_id in user_active_booking:
             booking_id = user_active_booking[user_id].get("booking_id", "Unknown")
             keyboard = [
-                [InlineKeyboardButton("✅ Yes", callback_data=f"confirm_yes_{booking_id}")],
-                [InlineKeyboardButton("❌ No", callback_data="confirm_no")],
+                [InlineKeyboardButton("✅ Yes, Cancel", callback_data=f"confirm_yes_{booking_id}")],
+                [InlineKeyboardButton("❌ No, Keep", callback_data="confirm_no")],
+                [InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]
             ]
-            await query.edit_message_text(f"⚠️ Cancel Booking `{booking_id}`?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(
+                f"⚠️ *Cancel Booking?*\n\nBooking ID: `{booking_id}`\n\nAre you sure?",
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
         else:
-            await query.edit_message_text("❌ No active booking!", parse_mode='Markdown')
+            await query.edit_message_text("❌ No active booking found!", parse_mode='Markdown')
     
     elif data.startswith("confirm_yes_"):
         booking_id = data.replace("confirm_yes_", "")
         if user_id in user_active_booking:
             del user_active_booking[user_id]
-            await query.edit_message_text(f"✅ Booking `{booking_id}` cancelled!", parse_mode='Markdown')
+            keyboard = [
+                [InlineKeyboardButton("📅 New Booking", callback_data="menu_book")],
+                [InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(
+                f"✅ *Booking Cancelled!*\n\nBooking ID: `{booking_id}` has been cancelled.\n\nStart a new booking?",
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
+        else:
+            await query.edit_message_text("❌ Booking not found!", parse_mode='Markdown')
     
     elif data == "confirm_no":
-        await query.edit_message_text("✅ Booking kept active!", parse_mode='Markdown')
+        if user_id in user_active_booking:
+            booking_id = user_active_booking[user_id].get("booking_id", "Unknown")
+            keyboard = [
+                [InlineKeyboardButton("📅 New Booking", callback_data="menu_book")],
+                [InlineKeyboardButton("❌ Cancel Booking", callback_data="menu_cancel_booking")],
+                [InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(
+                f"✅ *Booking Kept!*\n\nYour Booking ID: `{booking_id}` is still active.\n\nWhat would you like to do?",
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
     
-    # Service Selection
+    elif data == "cancel_during_booking":
+        if user_id in user_data:
+            del user_data[user_id]
+        await query.edit_message_text("❌ Booking cancelled!", parse_mode='Markdown')
+        await show_main_menu(query.message, user_id)
+    
+    # ========== SERVICE SELECTION ==========
     elif data == "book_massage":
         user_data[user_id] = {"service": "Massage", "step": "day_night"}
-        keyboard = [[InlineKeyboardButton("☀️ Day", callback_data="massage_day")], [InlineKeyboardButton("🌙 Night", callback_data="massage_night")], [InlineKeyboardButton("🔙 Back", callback_data="menu_book")]]
-        await query.edit_message_text("✅ Massage\n\nSelect Day or Night:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        keyboard = [
+            [InlineKeyboardButton("☀️ Day", callback_data="massage_day")],
+            [InlineKeyboardButton("🌙 Night", callback_data="massage_night")],
+            [InlineKeyboardButton("🔙 Back", callback_data="menu_book")]
+        ]
+        await query.edit_message_text("✅ *Massage*\n\nSelect Day OR Night:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
     
     elif data == "massage_day":
         user_data[user_id]["type"] = "Day"
         user_data[user_id]["step"] = "duration"
-        keyboard = [[InlineKeyboardButton("1 Hour", callback_data="dur_1")], [InlineKeyboardButton("2 Hours", callback_data="dur_2")], [InlineKeyboardButton("4 Hours", callback_data="dur_4")], [InlineKeyboardButton("🔙 Back", callback_data="book_massage")]]
-        await query.edit_message_text("✅ Massage - Day\n\nSelect duration:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        keyboard = [
+            [InlineKeyboardButton("⏰ 1 Hour", callback_data="dur_1")],
+            [InlineKeyboardButton("⏰ 2 Hours", callback_data="dur_2")],
+            [InlineKeyboardButton("⏰ 4 Hours", callback_data="dur_4")],
+            [InlineKeyboardButton("🔙 Back", callback_data="book_massage")]
+        ]
+        await query.edit_message_text("✅ Massage - *Day*\n\nSelect duration:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
     
     elif data == "massage_night":
         user_data[user_id]["type"] = "Night"
         user_data[user_id]["step"] = "duration"
-        keyboard = [[InlineKeyboardButton("1 Hour", callback_data="dur_1")], [InlineKeyboardButton("2 Hours", callback_data="dur_2")], [InlineKeyboardButton("4 Hours", callback_data="dur_4")], [InlineKeyboardButton("Full Night", callback_data="dur_night")], [InlineKeyboardButton("🔙 Back", callback_data="book_massage")]]
-        await query.edit_message_text("✅ Massage - Night\n\nSelect duration:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        keyboard = [
+            [InlineKeyboardButton("⏰ 1 Hour", callback_data="dur_1")],
+            [InlineKeyboardButton("⏰ 2 Hours", callback_data="dur_2")],
+            [InlineKeyboardButton("⏰ 4 Hours", callback_data="dur_4")],
+            [InlineKeyboardButton("🌙 Full Night", callback_data="dur_night")],
+            [InlineKeyboardButton("🔙 Back", callback_data="book_massage")]
+        ]
+        await query.edit_message_text("✅ Massage - *Night*\n\nSelect duration:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
     
     elif data == "book_casual":
         user_data[user_id] = {"service": "Casual Meet Up", "step": "day_night"}
-        keyboard = [[InlineKeyboardButton("☀️ Day", callback_data="casual_day")], [InlineKeyboardButton("🌙 Night", callback_data="casual_night")], [InlineKeyboardButton("🔙 Back", callback_data="menu_book")]]
-        await query.edit_message_text("✅ Casual Meet Up\n\nSelect Day or Night:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        keyboard = [
+            [InlineKeyboardButton("☀️ Day", callback_data="casual_day")],
+            [InlineKeyboardButton("🌙 Night", callback_data="casual_night")],
+            [InlineKeyboardButton("🔙 Back", callback_data="menu_book")]
+        ]
+        await query.edit_message_text("✅ *Casual Meet Up*\n\nSelect Day OR Night:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
     
     elif data == "casual_day":
         user_data[user_id]["type"] = "Day"
         user_data[user_id]["step"] = "duration"
-        keyboard = [[InlineKeyboardButton("1 Hour", callback_data="dur_1")], [InlineKeyboardButton("2 Hours", callback_data="dur_2")], [InlineKeyboardButton("4 Hours", callback_data="dur_4")], [InlineKeyboardButton("🔙 Back", callback_data="book_casual")]]
-        await query.edit_message_text("✅ Casual Meet Up - Day\n\nSelect duration:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        keyboard = [
+            [InlineKeyboardButton("⏰ 1 Hour", callback_data="dur_1")],
+            [InlineKeyboardButton("⏰ 2 Hours", callback_data="dur_2")],
+            [InlineKeyboardButton("⏰ 4 Hours", callback_data="dur_4")],
+            [InlineKeyboardButton("🔙 Back", callback_data="book_casual")]
+        ]
+        await query.edit_message_text("✅ Casual Meet Up - *Day*\n\nSelect duration:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
     
     elif data == "casual_night":
         user_data[user_id]["type"] = "Night"
         user_data[user_id]["step"] = "duration"
-        keyboard = [[InlineKeyboardButton("1 Hour", callback_data="dur_1")], [InlineKeyboardButton("2 Hours", callback_data="dur_2")], [InlineKeyboardButton("4 Hours", callback_data="dur_4")], [InlineKeyboardButton("Full Night", callback_data="dur_night")], [InlineKeyboardButton("🔙 Back", callback_data="book_casual")]]
-        await query.edit_message_text("✅ Casual Meet Up - Night\n\nSelect duration:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        keyboard = [
+            [InlineKeyboardButton("⏰ 1 Hour", callback_data="dur_1")],
+            [InlineKeyboardButton("⏰ 2 Hours", callback_data="dur_2")],
+            [InlineKeyboardButton("⏰ 4 Hours", callback_data="dur_4")],
+            [InlineKeyboardButton("🌙 Full Night", callback_data="dur_night")],
+            [InlineKeyboardButton("🔙 Back", callback_data="book_casual")]
+        ]
+        await query.edit_message_text("✅ Casual Meet Up - *Night*\n\nSelect duration:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
     
     elif data == "book_day":
         user_data[user_id] = {"service": "Day Service", "step": "duration"}
-        keyboard = [[InlineKeyboardButton("1 Hour", callback_data="dur_1")], [InlineKeyboardButton("2 Hours", callback_data="dur_2")], [InlineKeyboardButton("4 Hours", callback_data="dur_4")], [InlineKeyboardButton("🔙 Back", callback_data="menu_book")]]
-        await query.edit_message_text("✅ Day Service\n\nSelect duration:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        keyboard = [
+            [InlineKeyboardButton("⏰ 1 Hour", callback_data="dur_1")],
+            [InlineKeyboardButton("⏰ 2 Hours", callback_data="dur_2")],
+            [InlineKeyboardButton("⏰ 4 Hours", callback_data="dur_4")],
+            [InlineKeyboardButton("🔙 Back", callback_data="menu_book")]
+        ]
+        await query.edit_message_text("✅ *Day Service*\n\nSelect duration:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
     
     elif data == "book_night":
         user_data[user_id] = {"service": "Night Package", "step": "duration"}
-        keyboard = [[InlineKeyboardButton("1 Hour", callback_data="dur_1")], [InlineKeyboardButton("2 Hours", callback_data="dur_2")], [InlineKeyboardButton("4 Hours", callback_data="dur_4")], [InlineKeyboardButton("Full Night", callback_data="dur_night")], [InlineKeyboardButton("🔙 Back", callback_data="menu_book")]]
-        await query.edit_message_text("✅ Night Package\n\nSelect duration:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        keyboard = [
+            [InlineKeyboardButton("⏰ 1 Hour", callback_data="dur_1")],
+            [InlineKeyboardButton("⏰ 2 Hours", callback_data="dur_2")],
+            [InlineKeyboardButton("⏰ 4 Hours", callback_data="dur_4")],
+            [InlineKeyboardButton("🌙 Full Night", callback_data="dur_night")],
+            [InlineKeyboardButton("🔙 Back", callback_data="menu_book")]
+        ]
+        await query.edit_message_text("✅ *Night Package*\n\nSelect duration:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
     
+    # ========== DURATION SELECTION ==========
     elif data in ["dur_1", "dur_2", "dur_4", "dur_night"]:
-        duration_map = {"dur_1": "1 Hour", "dur_2": "2 Hours", "dur_4": "4 Hours", "dur_night": "Full Night"}
+        duration_map = {
+            "dur_1": "1 Hour",
+            "dur_2": "2 Hours", 
+            "dur_4": "4 Hours",
+            "dur_night": "Full Night"
+        }
         user_data[user_id]["duration"] = duration_map[data]
         user_data[user_id]["step"] = "place"
         
-        keyboard = [[InlineKeyboardButton("🏢 Public Place", callback_data="place_public")], [InlineKeyboardButton("🏨 Hotel", callback_data="place_hotel")], [InlineKeyboardButton("🏠 Your Home", callback_data="place_home")], [InlineKeyboardButton("🔙 Back", callback_data="menu_book")]]
-        await query.edit_message_text(f"✅ Duration: {duration_map[data]}\n\n📍 Where do you want the service?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        keyboard = [
+            [InlineKeyboardButton("🏢 Public Place", callback_data="place_public")],
+            [InlineKeyboardButton("🏨 Hotel", callback_data="place_hotel")],
+            [InlineKeyboardButton("🏠 Your Home", callback_data="place_home")],
+            [InlineKeyboardButton("🔙 Back", callback_data="menu_book")]
+        ]
+        
+        service = user_data[user_id].get("service", "Service")
+        duration = duration_map[data]
+        type_info = user_data[user_id].get("type", "")
+        type_info = f" ({type_info})" if type_info else ""
+        
+        await query.edit_message_text(
+            f"✅ *{service}{type_info}* | Duration: *{duration}*\n\n📍 Where do you want the service?",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
     
+    # ========== PLACE SELECTION ==========
     elif data in ["place_public", "place_hotel", "place_home"]:
-        place_map = {"place_public": "Public Place", "place_hotel": "Hotel", "place_home": "Your Home"}
+        place_map = {
+            "place_public": "Public Place",
+            "place_hotel": "Hotel",
+            "place_home": "Your Home"
+        }
         user_data[user_id]["place"] = place_map[data]
         user_data[user_id]["step"] = "status"
         
-        keyboard = [[InlineKeyboardButton("👤 Single", callback_data="status_single")], [InlineKeyboardButton("👥 Couple", callback_data="status_couple")], [InlineKeyboardButton("🔙 Back", callback_data="menu_book")]]
-        await query.edit_message_text(f"✅ Place: {place_map[data]}\n\n👥 Single or Couple?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        keyboard = [
+            [InlineKeyboardButton("👤 Single", callback_data="status_single")],
+            [InlineKeyboardButton("👥 Couple", callback_data="status_couple")],
+            [InlineKeyboardButton("🔙 Back", callback_data="menu_book")]
+        ]
+        await query.edit_message_text(
+            f"✅ Place: *{place_map[data]}*\n\n👥 Are you Single or Couple?",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
     
+    # ========== STATUS SELECTION ==========
     elif data in ["status_single", "status_couple"]:
-        status_map = {"status_single": "Single", "status_couple": "Couple"}
+        status_map = {
+            "status_single": "Single",
+            "status_couple": "Couple"
+        }
         user_data[user_id]["status"] = status_map[data]
         user_data[user_id]["step"] = "age"
-        await query.edit_message_text(f"✅ Status: {status_map[data]}\n\n🎂 Enter your age:", parse_mode='Markdown')
+        
+        await query.edit_message_text(
+            f"✅ Status: *{status_map[data]}*\n\n🎂 *Please enter your age:*\n\nExample: `25`",
+            parse_mode='Markdown'
+        )
     
     elif data == "skip_contact":
         await skip_contact(update, context)
 
 # ============================================
-# SKIP CONTACT
+# SKIP CONTACT HANDLER
 # ============================================
 
 async def skip_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -371,54 +581,68 @@ async def skip_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     user_id = query.from_user.id
+    
     if user_id not in user_data or user_data[user_id].get("step") != "contact_details":
-        await query.edit_message_text("Type 'book' to start")
+        await query.edit_message_text("Type 'book' to start a new booking")
         return
     
     await complete_booking(user_id, query.message, "Not provided")
 
 # ============================================
-# COMPLETE BOOKING - FIXED
+# COMPLETE BOOKING
 # ============================================
 
 async def complete_booking(user_id, message, contact_details):
-    """Complete booking and send to admin"""
+    """Complete booking and send details to admin"""
     
-    print(f"\n📝 COMPLETING BOOKING FOR USER: {user_id}")
+    print(f"Completing booking for user {user_id}")
     
-    try:
-        service = user_data[user_id].get("service", "Unknown")
-        duration = user_data[user_id].get("duration", "Unknown")
-        place = user_data[user_id].get("place", "Unknown")
-        status = user_data[user_id].get("status", "Unknown")
-        age = user_data[user_id].get("age", "Unknown")
-        location = user_data[user_id].get("location", "Unknown")
-        service_type = user_data[user_id].get("type", "")
-        contact = contact_details
-        booking_id = f"BK{datetime.now().strftime('%Y%m%d%H%M%S')}"
-        user = message.from_user
-        
-        print(f"📋 Booking ID: {booking_id}")
-        print(f"👤 Customer: {user.first_name}")
-        print(f"💼 Service: {service} {service_type}")
-        print(f"📍 Location: {location}")
-        
-        # Store booking
-        booking_data = {
-            "user_id": user_id, "user_name": user.first_name, "username": user.username,
-            "service": service, "service_type": service_type, "duration": duration,
-            "place": place, "status": status, "age": age, "location": location,
-            "contact": contact, "booking_id": booking_id, "time": datetime.now().isoformat()
-        }
-        bookings[booking_id] = booking_data
-        user_active_booking[user_id] = booking_data
-        
-        # Send confirmation to customer
-        await message.reply_text(f"""
-✅ BOOKING CONFIRMED!
+    service = user_data[user_id].get("service", "Unknown")
+    duration = user_data[user_id].get("duration", "Unknown")
+    place = user_data[user_id].get("place", "Unknown")
+    status = user_data[user_id].get("status", "Unknown")
+    age = user_data[user_id].get("age", "Unknown")
+    location = user_data[user_id].get("location", "Unknown")
+    service_type = user_data[user_id].get("type", "")
+    contact = contact_details
+    
+    booking_id = f"BK{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    user = message.from_user
+    
+    booking_data = {
+        "user_id": user_id,
+        "user_name": user.first_name,
+        "username": user.username,
+        "service": service,
+        "service_type": service_type,
+        "duration": duration,
+        "place": place,
+        "status": status,
+        "age": age,
+        "location": location,
+        "contact": contact,
+        "booking_id": booking_id,
+        "time": datetime.now().isoformat()
+    }
+    
+    bookings[booking_id] = booking_data
+    user_active_booking[user_id] = booking_data
+    
+    # Keyboard after booking
+    keyboard = [
+        [InlineKeyboardButton("📅 New Booking", callback_data="menu_book")],
+        [InlineKeyboardButton("❌ Cancel Booking", callback_data="menu_cancel_booking")],
+        [InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    # Send confirmation to customer
+    await message.reply_text(f"""
+✅ *BOOKING CONFIRMED!* ✅
 
-📋 Booking ID: {booking_id}
+📋 *Booking ID:* `{booking_id}`
 
+📝 *Summary:*
 💼 Service: {service} {service_type}
 ⏱️ Duration: {duration}
 📍 Place: {place}
@@ -427,62 +651,59 @@ async def complete_booking(user_id, message, contact_details):
 🏠 Location: {location}
 📞 Contact: {contact}
 
-Our associate will contact you shortly!
-""", parse_mode='Markdown')
-        
-        # Send to admin - PLAIN TEXT (no markdown issues)
-        admin_msg = f"""
-🔔 NEW BOOKING 🔔
+*Our associate will contact you shortly!*
+""", reply_markup=reply_markup, parse_mode='Markdown')
+    
+    # Send to admin
+    admin_message = f"""
+🔔 *NEW BOOKING* 🔔
+━━━━━━━━━━━━━━━━
 
-━━━━━━━━━━━━━━━━
-CUSTOMER DETAILS:
-━━━━━━━━━━━━━━━━
-Name: {user.first_name}
-Username: @{user.username or 'N/A'}
-User ID: {user_id}
-Age: {age}
-Status: {status}
-Contact: {contact}
+👤 *CUSTOMER:*
+• Name: {user.first_name}
+• Username: @{user.username or 'N/A'}
+• ID: `{user_id}`
+• Age: {age}
+• Status: {status}
+• Contact: {contact}
 
-━━━━━━━━━━━━━━━━
-BOOKING DETAILS:
-━━━━━━━━━━━━━━━━
-Service: {service} {service_type}
-Duration: {duration}
-Place: {place}
-Location: {location}
-Booking ID: {booking_id}
+📋 *BOOKING:*
+• Service: {service} {service_type}
+• Duration: {duration}
+• Place: {place}
+• Location: {location}
+• ID: `{booking_id}`
 
-Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+⏰ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 """
-        
-        # Send to admin
-        result = await send_to_admin(message.bot, admin_msg)
-        
-        if result:
-            print(f"✅ Booking details sent to admin successfully!")
-        else:
-            print(f"❌ FAILED to send booking details to admin!")
-            # Try one more time with even simpler message
-            try:
-                await message.bot.send_message(ADMIN_ID, f"NEW BOOKING! Customer: {user.first_name}, Service: {service}, ID: {booking_id}")
-                print(f"✅ Simple message sent")
-            except Exception as e:
-                print(f"❌ Final attempt failed: {e}")
-        
-        # Clear user data
-        if user_id in user_data:
-            del user_data[user_id]
-            
+    
+    try:
+        await message.bot.send_message(ADMIN_ID, admin_message, parse_mode='Markdown')
+        print(f"✅ Booking sent to admin {ADMIN_ID}")
     except Exception as e:
-        print(f"❌ ERROR in complete_booking: {e}")
-        await message.reply_text(f"❌ Error: {str(e)[:100]}")
+        print(f"❌ Failed to send to admin: {e}")
+        # Try without markdown
+        try:
+            await message.bot.send_message(ADMIN_ID, admin_message.replace('*', '').replace('_', ''))
+            print(f"✅ Booking sent to admin (without markdown)")
+        except Exception as e2:
+            print(f"❌ Both attempts failed: {e2}")
+    
+    # Clear user data
+    if user_id in user_data:
+        del user_data[user_id]
 
 # ============================================
-# MAIN
+# MAIN FUNCTION
 # ============================================
 
 def main():
+    print("=" * 50)
+    print("🚀 LUCKNOW GLEEDEN BOT STARTING...")
+    print(f"🤖 TOKEN: {'✅ Loaded' if TOKEN else '❌ Missing'}")
+    print(f"👑 ADMIN_ID: {ADMIN_ID}")
+    print("=" * 50)
+    
     threading.Thread(target=run_flask, daemon=True).start()
     
     app = Application.builder().token(TOKEN).build()
@@ -497,8 +718,8 @@ def main():
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, easy_type_handler))
     
-    print("✅ Bot started! Waiting for messages...")
-    print("=" * 60)
+    print("✅ Bot started!")
+    print("=" * 50)
     
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
