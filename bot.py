@@ -1,6 +1,6 @@
 """
 LUCKNOW GLEEDEN BOT - HINDI + ENGLISH
-24x7 Timing | No Photoshoot | ONLY FOR FEMALE | FIXED VERSION
+24x7 Timing | No Photoshoot | ONLY FOR FEMALE | EASY TYPE VERSION
 """
 
 import os
@@ -37,11 +37,31 @@ user_data = {}
 bookings = {}
 
 # ============================================
+# MAIN MENU BUTTONS FUNCTION
+# ============================================
+
+async def show_main_menu(message):
+    """Show main menu with buttons"""
+    keyboard = [
+        [InlineKeyboardButton("📅 Book Now", callback_data="menu_book")],
+        [InlineKeyboardButton("ℹ️ Service Info", callback_data="menu_info")],
+        [InlineKeyboardButton("📞 Contact Us", callback_data="menu_contact")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await message.reply_text(
+        "🔥 *LUCKNOW GLEEDEN SERVICE* 🔥\n"
+        "👩 *Only for Female* 👩\n\n"
+        "👇 *Choose an option:* 👇",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+
+# ============================================
 # COMMAND HANDLERS
 # ============================================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Welcome message"""
+    """Welcome message with buttons"""
     welcome_text = """
 🔥 *WELCOME TO LUCKNOW GLEEDEN SERVICE* 🔥
 🔥 *लखनऊ ग्लीडेन सर्विस में आपका स्वागत है* 🔥
@@ -49,10 +69,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 ✨ *Premium Entertainment Services* ✨
 
-📋 *Commands:*
-/book - Book Now
-/info - Service Info
-/contact - Contact Us
+📌 *Just type below:*
+• "book" or "बुक" or "hi/hello" - Start booking
+• "info" or "जानकारी" - Service info
+• "contact" or "संपर्क" - Contact us
+• "cancel" or "रद्द" - Cancel booking
 
 🔒 *100% Privacy Guaranteed*
 📍 *Service in Lucknow*
@@ -66,8 +87,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode='Markdown')
 
 async def book_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Start booking"""
+    """Start booking - Shows service menu"""
     user_id = update.effective_user.id
+    
+    # Clear any existing booking data
+    if user_id in user_data:
+        del user_data[user_id]
+    
     user_data[user_id] = {"step": "service"}
     
     keyboard = [
@@ -78,11 +104,19 @@ async def book_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("❌ Cancel", callback_data="book_cancel")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        "📅 *NEW BOOKING*\n\nSelect service:",
-        reply_markup=reply_markup,
-        parse_mode='Markdown'
-    )
+    
+    if update.callback_query:
+        await update.callback_query.message.edit_text(
+            "📅 *NEW BOOKING*\n\nSelect service:",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+    else:
+        await update.message.reply_text(
+            "📅 *NEW BOOKING*\n\nSelect service:",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
 
 async def info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Service information"""
@@ -117,7 +151,10 @@ async def contact_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🆔 ID: `{user.id}`
 ⏰ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 """
-    await context.bot.send_message(ADMIN_ID, admin_msg, parse_mode='Markdown')
+    try:
+        await context.bot.send_message(ADMIN_ID, admin_msg, parse_mode='Markdown')
+    except Exception as e:
+        print(f"Failed: {e}")
     
     contact_text = f"""
 📞 *CONTACT US*
@@ -135,23 +172,148 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ℹ️ *HOW TO USE* ℹ️
 
 📅 *To Book:*
-1️⃣ Type /book
-2️⃣ Select service
-3️⃣ Choose Day or Night (for Massage/Casual)
-4️⃣ Choose duration
-5️⃣ Choose place
-6️⃣ Tell status (Single/Couple)
-7️⃣ Share age
-8️⃣ Share location
-9️⃣ Share contact details (Optional)
+Simply type: "book", "बुक", "hi", "hello", "hey", "hy"
 
-💬 *Commands:*
-/start - Main menu
-/book - Start booking
-/info - Service info
-/contact - Contact us
+📋 *Other Keywords:*
+• "info" or "जानकारी" - Service info
+• "contact" or "संपर्क" - Contact us
+• "cancel" or "रद्द" - Cancel booking
+• "menu" or "start" - Show main menu
+
+💬 *Or use the buttons below!*
 """
     await update.message.reply_text(help_text, parse_mode='Markdown')
+
+async def cancel_booking(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel current booking and show menu"""
+    user_id = update.effective_user.id
+    
+    if user_id in user_data:
+        del user_data[user_id]
+        await update.message.reply_text(
+            "❌ *Booking Cancelled!*\n\n"
+            "Your booking has been cancelled successfully.\n\n"
+            "Type 'book' to start a new booking or click below:",
+            parse_mode='Markdown'
+        )
+        await show_main_menu(update.message)
+    else:
+        await update.message.reply_text(
+            "❌ *No Active Booking Found!*\n\n"
+            "Type 'book' to start a new booking:",
+            parse_mode='Markdown'
+        )
+        await show_main_menu(update.message)
+
+# ============================================
+# EASY TYPE HANDLER - बिना / के कमांड
+# ============================================
+
+async def easy_type_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle normal text messages as commands"""
+    user_id = update.effective_user.id
+    message = update.message
+    text = message.text.lower().strip()
+    
+    # Agar user booking flow me hai to booking handle karein
+    if user_id in user_data:
+        current_step = user_data[user_id].get("step")
+        
+        # Cancel keyword during booking
+        if text in ["cancel", "रद्द", "cancel booking", "exit"]:
+            del user_data[user_id]
+            await message.reply_text(
+                "❌ *Booking Cancelled!*\n\n"
+                "Type 'book' to start a new booking:",
+                parse_mode='Markdown'
+            )
+            await show_main_menu(message)
+            return
+        
+        # Otherwise handle booking flow
+        await handle_booking_flow(update, context)
+        return
+    
+    # Easy keywords - बिना / के काम करेंगे
+    # Booking keywords (including hi, hello, hey, hy)
+    if text in ["book", "booking", "बुक", "बुकिंग", "book now", "hi", "hello", "hey", "hy", "hii", "helo", "hlo"]:
+        await book_command(update, context)
+    
+    elif text in ["info", "information", "जानकारी", "सेवा", "service", "services"]:
+        await info_command(update, context)
+    
+    elif text in ["contact", "support", "संपर्क", "सपोर्ट", "help me", "call"]:
+        await contact_command(update, context)
+    
+    elif text in ["help", "मदद", "सहायता", "how to use", "guide"]:
+        await help_command(update, context)
+    
+    elif text in ["cancel", "रद्द", "cancel booking", "exit", "quit"]:
+        await cancel_booking(update, context)
+    
+    elif text in ["start", "menu", "मेनू", "main menu", "back"]:
+        await start(update, context)
+    
+    else:
+        # Default reply for unknown messages
+        await message.reply_text(
+            "📝 *I don't understand that.*\n\n"
+            "📌 *Try typing:*\n"
+            "• 'book' or 'hi' - to book a service\n"
+            "• 'info' - for service info\n"
+            "• 'contact' - to contact us\n"
+            "• 'cancel' - to cancel booking\n"
+            "• 'help' - for help menu",
+            parse_mode='Markdown'
+        )
+
+# ============================================
+# BOOKING FLOW HANDLER
+# ============================================
+
+async def handle_booking_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle booking flow messages"""
+    user_id = update.effective_user.id
+    message = update.message
+    text = message.text.strip()
+    
+    if user_id not in user_data:
+        return
+    
+    current_step = user_data[user_id].get("step")
+    
+    if current_step == "age":
+        user_data[user_id]["age"] = text
+        user_data[user_id]["step"] = "location"
+        await message.reply_text(
+            f"✅ Age: *{text}*\n\n"
+            f"📍 *Please share your LOCATION (Area Name)*\n\n"
+            f"Example: Gomti Nagar, Lucknow\n\n"
+            f"*अब कृपया अपनी लोकेशन भेजें*",
+            parse_mode='Markdown'
+        )
+    
+    elif current_step == "location":
+        user_data[user_id]["location"] = text
+        user_data[user_id]["step"] = "contact_details"
+        
+        keyboard = [
+            [InlineKeyboardButton("⏭️ Skip", callback_data="skip_contact")],
+            [InlineKeyboardButton("❌ Cancel", callback_data="book_cancel")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await message.reply_text(
+            f"✅ Location: *{text}*\n\n"
+            f"📞 *Please share your CONTACT DETAILS (Optional)*\n\n"
+            f"Example: 9876543210\n\n"
+            f"*Or click SKIP if you don't want to share*",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+    
+    elif current_step == "contact_details":
+        await complete_booking(user_id, message, text)
 
 # ============================================
 # CALLBACK QUERY HANDLER
@@ -167,19 +329,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # ========== MAIN MENU ==========
     if data == "menu_book":
-        user_data[user_id] = {"step": "service"}
-        keyboard = [
-            [InlineKeyboardButton("💆‍♂️ Massage", callback_data="book_massage")],
-            [InlineKeyboardButton("🤝 Casual Meet Up", callback_data="book_casual")],
-            [InlineKeyboardButton("☀️ Day Service", callback_data="book_day")],
-            [InlineKeyboardButton("🌙 Night Package", callback_data="book_night")],
-            [InlineKeyboardButton("❌ Cancel", callback_data="book_cancel")]
-        ]
-        await query.edit_message_text(
-            "📅 *NEW BOOKING*\n\nSelect service:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
-        )
+        await book_command(update, context)
     
     elif data == "menu_info":
         info_text = """
@@ -198,10 +348,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "menu_contact":
         user = query.from_user
         admin_msg = f"📞 Contact Request from {user.first_name} (@{user.username or 'N/A'}) ID: {user.id}"
-        await context.bot.send_message(ADMIN_ID, admin_msg)
+        try:
+            await context.bot.send_message(ADMIN_ID, admin_msg)
+        except Exception as e:
+            print(f"Failed: {e}")
         await query.edit_message_text("✅ Request sent to admin! We'll contact you shortly.", parse_mode='Markdown')
     
-    # ========== MASSAGE (Day OR Night) ==========
+    # ========== SERVICE SELECTION ==========
     elif data == "book_massage":
         user_data[user_id] = {"service": "Massage", "step": "day_night"}
         keyboard = [
@@ -246,7 +399,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
     
-    # ========== CASUAL MEET UP (Day OR Night) ==========
+    # ========== CASUAL MEET UP ==========
     elif data == "book_casual":
         user_data[user_id] = {"service": "Casual Meet Up", "step": "day_night"}
         keyboard = [
@@ -291,7 +444,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
     
-    # ========== DAY SERVICE (Direct: 1,2,4 Hours) ==========
+    # ========== DAY SERVICE ==========
     elif data == "book_day":
         user_data[user_id] = {"service": "Day Service", "step": "duration"}
         keyboard = [
@@ -306,7 +459,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
     
-    # ========== NIGHT PACKAGE (Direct: 1,2,4 Hours, Full Night) ==========
+    # ========== NIGHT PACKAGE ==========
     elif data == "book_night":
         user_data[user_id] = {"service": "Night Package", "step": "duration"}
         keyboard = [
@@ -326,9 +479,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if user_id in user_data:
             del user_data[user_id]
         await query.edit_message_text(
-            "❌ *Booking cancelled*\n\nStart again with /book",
+            "❌ *Booking cancelled*\n\nType 'book' to start again:",
             parse_mode='Markdown'
         )
+        # Show main menu after cancel
+        await show_main_menu(query.message)
     
     # ========== DURATION SELECTION ==========
     elif data in ["dur_1", "dur_2", "dur_4", "dur_night"]:
@@ -391,69 +546,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data[user_id]["step"] = "age"
         
         await query.edit_message_text(
-            f"✅ Status: *{status_map[data]}*\n\n🎂 *Please enter your age:*\n\nExample: `25`\n\n*कृपया अपनी उम्र बताएं:*",
-            parse_mode='Markdown'
-        )
-
-# ============================================
-# MESSAGE HANDLER - Age, Location, Contact
-# ============================================
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle all text messages - Age, Location, Contact Details"""
-    user_id = update.effective_user.id
-    message = update.message
-    text = message.text.strip()
-    
-    # Check if user is in booking flow
-    if user_id not in user_data:
-        # Auto reply for random messages
-        await message.reply_text("📝 Type /book to start a new booking")
-        return
-    
-    current_step = user_data[user_id].get("step")
-    
-    # ========== AGE STEP ==========
-    if current_step == "age":
-        user_data[user_id]["age"] = text
-        user_data[user_id]["step"] = "location"
-        
-        await message.reply_text(
-            f"✅ Age: *{text}*\n\n"
-            f"📍 *Please share your LOCATION (Area Name)*\n\n"
-            f"Example: Gomti Nagar, Lucknow\n\n"
-            f"*अब कृपया अपनी लोकेशन भेजें (इलाके का नाम)*",
+            f"✅ Status: *{status_map[data]}*\n\n🎂 *Please enter your age:*\n\nExample: `25`",
             parse_mode='Markdown'
         )
     
-    # ========== LOCATION STEP ==========
-    elif current_step == "location":
-        user_data[user_id]["location"] = text
-        user_data[user_id]["step"] = "contact_details"
-        
-        keyboard = [
-            [InlineKeyboardButton("⏭️ Skip / छोड़ें", callback_data="skip_contact")],
-            [InlineKeyboardButton("❌ Cancel Booking", callback_data="book_cancel")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await message.reply_text(
-            f"✅ Location: *{text}*\n\n"
-            f"📞 *Please share your CONTACT DETAILS (Optional)*\n\n"
-            f"Example: Phone Number or WhatsApp Number\n\n"
-            f"Example: `9876543210`\n\n"
-            f"*You can also click SKIP if you don't want to share*",
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
-        )
-    
-    # ========== CONTACT DETAILS STEP ==========
-    elif current_step == "contact_details":
-        contact_details = text
-        await complete_booking(user_id, message, contact_details)
-    
-    else:
-        await message.reply_text("📝 Type /book to start a new booking")
+    elif data == "skip_contact":
+        await skip_contact(update, context)
 
 # ============================================
 # SKIP CONTACT HANDLER
@@ -467,13 +565,13 @@ async def skip_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     
     if user_id not in user_data or user_data[user_id].get("step") != "contact_details":
-        await query.edit_message_text("📝 Type /book to start a new booking")
+        await query.edit_message_text("📝 Type 'book' to start a new booking")
         return
     
-    await complete_booking(user_id, query.message, "Not provided (Skipped)")
+    await complete_booking(user_id, query.message, "Not provided")
 
 # ============================================
-# COMPLETE BOOKING FUNCTION
+# COMPLETE BOOKING
 # ============================================
 
 async def complete_booking(user_id, message, contact_details):
@@ -509,87 +607,56 @@ async def complete_booking(user_id, message, contact_details):
     # Send confirmation to customer
     await message.reply_text(f"""
 ✅ *BOOKING CONFIRMED!* ✅
-━━━━━━━━━━━━━━━━━━━━━━━
 
 📋 *Booking ID:* `{booking_id}`
 
-📝 *Your Booking Summary:*
-━━━━━━━━━━━━━━━━━━━━━━━
 💼 Service: {service} {service_type}
 ⏱️ Duration: {duration}
-📍 Meeting Place: {place}
+📍 Place: {place}
 👥 Status: {status}
 🎂 Age: {age}
 🏠 Location: {location}
 📞 Contact: {contact}
-━━━━━━━━━━━━━━━━━━━━━━━
 
-📞 *Next Steps:*
-✅ We have received your booking request
-✅ Our associate will contact you VERY SOON
-✅ Please keep your phone available
+*Our associate will contact you shortly!* 🙏
 
-*Thank you for choosing Lucknow Gleeden Service!* 🙏
-*आपका स्वागत है! हम आपसे जल्द संपर्क करेंगे!*
+Type 'book' for new booking
 """, parse_mode='Markdown')
     
-    # Send complete details to admin
+    # Send to admin
     admin_message = f"""
-🔔 *NEW BOOKING ALERT* 🔔
-━━━━━━━━━━━━━━━━━━━━━━━
+🔔 *NEW BOOKING* 🔔
+━━━━━━━━━━━━━━━━
 
-👤 *CUSTOMER DETAILS:*
-━━━━━━━━━━━━━━━━━━━━━━━
-• Name: {user.first_name} {user.last_name or ''}
+👤 *CUSTOMER:*
+• Name: {user.first_name}
 • Username: @{user.username or 'N/A'}
-• User ID: `{user_id}`
+• ID: `{user_id}`
 • Age: {age}
 • Status: {status}
 • Contact: {contact}
 
-━━━━━━━━━━━━━━━━━━━━━━━
-📋 *BOOKING DETAILS:*
-━━━━━━━━━━━━━━━━━━━━━━━
+📋 *BOOKING:*
 • Service: {service} {service_type}
 • Duration: {duration}
 • Place: {place}
 • Location: {location}
-• Booking ID: `{booking_id}`
+• ID: `{booking_id}`
 
-━━━━━━━━━━━━━━━━━━━━━━━
-⏰ *Time:* {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-━━━━━━━━━━━━━━━━━━━━━━━
-
-📱 *Customer Chat Link:* [Click to message](tg://user?id={user_id})
+⏰ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 """
     
-    await message.bot.send_message(ADMIN_ID, admin_message, parse_mode='Markdown')
+    try:
+        await message.bot.send_message(ADMIN_ID, admin_message, parse_mode='Markdown')
+        print(f"✅ Booking sent to admin {ADMIN_ID}")
+    except Exception as e:
+        print(f"❌ Failed to send to admin: {e}")
     
     # Clear user data
     del user_data[user_id]
-
-# ============================================
-# AUTO REPLY HANDLER (for messages outside booking)
-# ============================================
-
-async def auto_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Auto reply for common questions when not in booking flow"""
-    user_id = update.effective_user.id
     
-    # If user is in booking flow, don't auto reply (let handle_message handle it)
-    if user_id in user_data:
-        return
-    
-    text = update.message.text.lower()
-    
-    if "help" in text:
-        await update.message.reply_text("Type /start for menu\n/book for booking")
-    elif "location" in text:
-        await update.message.reply_text("📍 Service areas: Lucknow (Gomti Nagar, Hazratganj, Aliganj, Indira Nagar)")
-    elif "cancel" in text:
-        await update.message.reply_text("❌ To cancel, reply to your booking confirmation message.")
-    else:
-        await update.message.reply_text("✅ Message received! We'll respond shortly.\n\nType /book to start a new booking")
+    # Show main menu
+    await show_main_menu(message)
 
 # ============================================
 # MAIN FUNCTION
@@ -598,13 +665,14 @@ async def auto_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     print("=" * 50)
     print("🚀 LUCKNOW GLEEDEN BOT STARTING...")
+    print(f"🤖 TOKEN: {'✅ Loaded' if TOKEN else '❌ Missing'}")
+    print(f"👑 ADMIN_ID: {ADMIN_ID}")
     print("=" * 50)
     
-    # Start Flask health check server
+    # Start Flask
     threading.Thread(target=run_flask, daemon=True).start()
-    print("✅ Flask server started")
     
-    # Create bot application
+    # Create bot
     app = Application.builder().token(TOKEN).build()
     
     # Add command handlers
@@ -613,31 +681,24 @@ def main():
     app.add_handler(CommandHandler("info", info_command))
     app.add_handler(CommandHandler("contact", contact_command))
     app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("cancel", cancel_booking))
     
     # Add callback query handler
     app.add_handler(CallbackQueryHandler(button_callback))
-    app.add_handler(CallbackQueryHandler(skip_contact, pattern="skip_contact"))
     
-    # Add message handlers - IMPORTANT: Order matters!
-    # First check if message is part of booking flow
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    # Add message handler for easy typing
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, easy_type_handler))
     
-    print("✅ Bot is running 24/7!")
+    print("✅ Bot started!")
     print("=" * 50)
-    print("📋 SERVICE OPTIONS:")
-    print("• Massage: Day OR Night")
-    print("• Casual Meet Up: Day OR Night")
-    print("• Day Service: 1,2,4 Hours")
-    print("• Night Package: 1,2,4 Hours, Full Night")
-    print("=" * 50)
-    print("✅ FIXED:")
-    print("• Age → Location → Contact Details")
-    print("• Skip button working")
-    print("• Booking Confirmation")
-    print("• Admin message working")
+    print("📌 EASY KEYWORDS:")
+    print("• 'book', 'hi', 'hello', 'hey' - Start booking")
+    print("• 'cancel', 'रद्द' - Cancel booking")
+    print("• 'info' - Service info")
+    print("• 'contact' - Contact us")
+    print("• 'help' - Help menu")
     print("=" * 50)
     
-    # Start bot polling
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
