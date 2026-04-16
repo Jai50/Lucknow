@@ -1,9 +1,10 @@
 """
 LUCKNOW GLEEDEN BOT - HINDI + ENGLISH
-24x7 Timing | FULLY FIXED - No 'bot' attribute error
+24x7 Timing | FULLY FIXED - WITH ADMIN REPLY SYSTEM
 """
 
 import os
+import re
 import threading
 from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -83,12 +84,57 @@ async def show_main_menu(message, user_id=None):
     await message.reply_text(menu_text, reply_markup=reply_markup, parse_mode='Markdown')
 
 # ============================================
+# FORWARD USER MESSAGE TO ADMIN
+# ============================================
+
+async def forward_to_admin(update: Update, context: ContextTypes.DEFAULT_TYPE, message_text):
+    """Forward any user message to admin so admin can reply"""
+    user = update.effective_user
+    user_id = user.id
+    user_name = user.first_name
+    username = f"@{user.username}" if user.username else "No username"
+    
+    admin_msg = f"""
+📩 *NEW MESSAGE FROM USER*
+
+👤 Name: {user_name}
+🆔 User ID: `{user_id}`
+📝 Username: {username}
+
+━━━━━━━━━━━━━━━━
+💬 *Message:* 
+{message_text}
+━━━━━━━━━━━━━━━━
+
+💡 *To reply:* Reply to this message with your response
+"""
+    
+    try:
+        # Store user_id in the message so admin can reply
+        await context.bot.send_message(
+            ADMIN_ID, 
+            admin_msg,
+            parse_mode='Markdown'
+        )
+        print(f"✅ Message from {user_name} ({user_id}) forwarded to admin")
+    except Exception as e:
+        print(f"❌ Failed to forward to admin: {e}")
+
+# ============================================
 # COMMAND HANDLERS
 # ============================================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     await show_main_menu(update.message, user_id)
+    
+    # Notify admin that new user started the bot
+    user = update.effective_user
+    await context.bot.send_message(
+        ADMIN_ID,
+        f"🟢 *NEW USER STARTED BOT*\n\n👤 {user.first_name}\n🆔 ID: `{user.id}`\n📝 @{user.username if user.username else 'N/A'}",
+        parse_mode='Markdown'
+    )
 
 async def book_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -148,11 +194,21 @@ async def contact_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ Request sent to admin! We'll contact you shortly.", parse_mode='Markdown')
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    help_text = "📌 Type 'book' or 'hi' to start booking\nType 'cancel' to cancel booking"
+    help_text = """
+📌 *Available Commands*
+
+/book - Start new booking
+/info - Service information
+/contact - Contact admin
+/cancel - Cancel booking
+/send [ID] [msg] - Send message to user (Admin only)
+
+💡 Just type 'book' or 'hi' to start booking!
+"""
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
 # ============================================
-# NEW: SEND MESSAGE TO ANY USER (ADMIN ONLY)
+# SEND MESSAGE TO ANY USER (ADMIN ONLY)
 # ============================================
 
 async def send_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -174,13 +230,73 @@ async def send_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_id = int(args[0])
         message = " ".join(args[1:])
         
-        await context.bot.send_message(chat_id=target_id, text=message)
-        await update.message.reply_text(f"✅ Message sent to user {target_id}!")
+        await context.bot.send_message(chat_id=target_id, text=f"👑 *Admin:* {message}", parse_mode='Markdown')
+        await update.message.reply_text(f"✅ Message sent to user `{target_id}`!", parse_mode='Markdown')
         print(f"✅ Message sent to {target_id}")
     except ValueError:
         await update.message.reply_text("❌ Invalid User ID! Must be a number.")
     except Exception as e:
         await update.message.reply_text(f"❌ Failed: {str(e)[:100]}")
+
+# ============================================
+# ADMIN REPLY SYSTEM - Reply to user messages
+# ============================================
+
+async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """When admin replies to a forwarded message, send that reply to the original user"""
+    admin_id = update.effective_user.id
+    
+    # Only admin can use this
+    if admin_id != ADMIN_ID:
+        return
+    
+    # Check if this is a reply to a message
+    if not update.message.reply_to_message:
+        return
+    
+    replied_msg = update.message.reply_to_message
+    reply_text = update.message.text
+    
+    # Try to extract user ID from the replied message
+    target_id = None
+    
+    # Pattern 1: "🆔 User ID: `123456789`" (from forwarded message)
+    match = re.search(r"🆔 User ID: `(\d+)`", replied_msg.text or "")
+    if match:
+        target_id = int(match.group(1))
+    
+    # Pattern 2: "User ID: 123456789" (plain text)
+    if not target_id:
+        match = re.search(r"User ID: (\d+)", replied_msg.text or "")
+        if match:
+            target_id = int(match.group(1))
+    
+    # Pattern 3: "ID: 123456789"
+    if not target_id:
+        match = re.search(r"ID: (\d+)", replied_msg.text or "")
+        if match:
+            target_id = int(match.group(1))
+    
+    if target_id:
+        try:
+            # Send the reply to the user
+            await context.bot.send_message(
+                chat_id=target_id,
+                text=f"👑 *Admin:* {reply_text}",
+                parse_mode='Markdown'
+            )
+            # Confirm to admin that reply was sent
+            await update.message.reply_text(f"✅ Reply sent to user `{target_id}`!", parse_mode='Markdown')
+            print(f"✅ Admin replied to user {target_id}")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Failed to send reply: {str(e)[:100]}")
+            print(f"❌ Failed to send reply to {target_id}: {e}")
+    else:
+        await update.message.reply_text(
+            "❌ Could not find User ID in the replied message.\n\n"
+            "Make sure you are replying to a message that contains the User ID.\n"
+            "Use /send [ID] [message] as an alternative."
+        )
 
 # ============================================
 # CANCEL BOOKING
@@ -209,6 +325,10 @@ async def easy_type_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     message = update.message
     text = message.text.lower().strip()
+    
+    # Forward any user message to admin (so admin can reply)
+    if user_id != ADMIN_ID:
+        await forward_to_admin(update, context, message.text)
     
     if user_id in user_data:
         if text in ["cancel", "रद्द", "exit"]:
@@ -296,7 +416,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "menu_contact":
         user = query.from_user
         try:
-            await context.bot.send_message(ADMIN_ID, f"📞 Contact from {user.first_name} (@{user.username or 'N/A'})")
+            await context.bot.send_message(ADMIN_ID, f"📞 Contact from {user.first_name} (@{user.username or 'N/A'})\nID: {user.id}")
             await query.edit_message_text("✅ Request sent to admin!", parse_mode='Markdown')
         except Exception as e:
             await query.edit_message_text(f"❌ Error: {e}", parse_mode='Markdown')
@@ -534,41 +654,43 @@ async def complete_booking(update: Update, context: ContextTypes.DEFAULT_TYPE, u
 *Our associate will contact you shortly!*
 """, reply_markup=reply_markup, parse_mode='Markdown')
         
-        # Send to admin using context.bot (FIXED)
+        # Send to admin using context.bot
         admin_msg = f"""
-🔔 NEW BOOKING 🔔
+🔔 *NEW BOOKING* 🔔
 
 ━━━━━━━━━━━━━━━━
-CUSTOMER DETAILS:
+*CUSTOMER DETAILS:*
 ━━━━━━━━━━━━━━━━
-Name: {user.first_name}
-Username: @{user.username or 'N/A'}
-User ID: {user_id}
-Age: {age}
-Status: {status}
-Contact: {contact}
+👤 Name: {user.first_name}
+📝 Username: @{user.username or 'N/A'}
+🆔 User ID: `{user_id}`
+🎂 Age: {age}
+👥 Status: {status}
+📞 Contact: {contact}
 
 ━━━━━━━━━━━━━━━━
-BOOKING DETAILS:
+*BOOKING DETAILS:*
 ━━━━━━━━━━━━━━━━
-Service: {service} {service_type}
-Duration: {duration}
-Place: {place}
-Location: {location}
-Booking ID: {booking_id}
+💼 Service: {service} {service_type}
+⏱️ Duration: {duration}
+📍 Place: {place}
+🏠 Location: {location}
+📋 Booking ID: `{booking_id}`
 
-Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+🕐 Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+💡 *To reply to this user:* Use /send {user_id} [message] or reply to this message
 """
         
-        # Send using context.bot (NOT message.bot)
+        # Send using context.bot
         try:
-            await context.bot.send_message(ADMIN_ID, admin_msg)
+            await context.bot.send_message(ADMIN_ID, admin_msg, parse_mode='Markdown')
             print(f"✅ Booking details sent to admin {ADMIN_ID}")
         except Exception as e:
             print(f"❌ Failed to send to admin: {e}")
             # Try simple message
             try:
-                await context.bot.send_message(ADMIN_ID, f"NEW BOOKING! Customer: {user.first_name}, Service: {service}, ID: {booking_id}")
+                await context.bot.send_message(ADMIN_ID, f"NEW BOOKING! Customer: {user.first_name}, Service: {service}, ID: {booking_id}\nUser ID: {user_id}")
                 print(f"✅ Simple message sent")
             except Exception as e2:
                 print(f"❌ Both attempts failed: {e2}")
@@ -604,13 +726,19 @@ def main():
     app.add_handler(CommandHandler("contact", contact_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("cancel", cancel_booking_command))
-    app.add_handler(CommandHandler("send", send_to_user))  # NEW COMMAND ADDED HERE
+    app.add_handler(CommandHandler("send", send_to_user))  # Send message to any user
+    
+    # Admin reply handler - when admin replies to a forwarded message
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_ID), admin_reply_handler))
     
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, easy_type_handler))
     
     print("✅ Bot started!")
-    print("✅ NEW COMMAND ADDED: /send [user_id] [message] - Admin can message any user")
+    print("✅ NEW FEATURES:")
+    print("   • /send [ID] [message] - Send message to any user")
+    print("   • Reply to any forwarded message - Auto sends reply to user")
+    print("   • All user messages are forwarded to admin")
     print("=" * 50)
     
     app.run_polling(allowed_updates=Update.ALL_TYPES)
