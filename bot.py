@@ -152,6 +152,37 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
 # ============================================
+# NEW: SEND MESSAGE TO ANY USER (ADMIN ONLY)
+# ============================================
+
+async def send_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin command to send message to any user by ID"""
+    user_id = update.effective_user.id
+    
+    # Only admin can use this command
+    if user_id != ADMIN_ID:
+        await update.message.reply_text("❌ Only admin can use this command!")
+        return
+    
+    # Command format: /send 123456789 your message
+    args = context.args
+    if len(args) < 2:
+        await update.message.reply_text("❌ Usage: /send [user_id] [message]\nExample: /send 123456789 Hello!")
+        return
+    
+    try:
+        target_id = int(args[0])
+        message = " ".join(args[1:])
+        
+        await context.bot.send_message(chat_id=target_id, text=message)
+        await update.message.reply_text(f"✅ Message sent to user {target_id}!")
+        print(f"✅ Message sent to {target_id}")
+    except ValueError:
+        await update.message.reply_text("❌ Invalid User ID! Must be a number.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Failed: {str(e)[:100]}")
+
+# ============================================
 # CANCEL BOOKING
 # ============================================
 
@@ -573,11 +604,13 @@ def main():
     app.add_handler(CommandHandler("contact", contact_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("cancel", cancel_booking_command))
+    app.add_handler(CommandHandler("send", send_to_user))  # NEW COMMAND ADDED HERE
     
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, easy_type_handler))
     
     print("✅ Bot started!")
+    print("✅ NEW COMMAND ADDED: /send [user_id] [message] - Admin can message any user")
     print("=" * 50)
     
     app.run_polling(allowed_updates=Update.ALL_TYPES)
